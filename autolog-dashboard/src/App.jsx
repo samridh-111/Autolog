@@ -30,12 +30,28 @@ ChartJS.register(
   Legend
 );
 
-const fetchTelemetryData = async () => {
+const fetchVehicleData = async (carIndex = 0) => {
   try {
-    const response = await fetch("http://localhost:3001/api/telemetry");
-    return await response.json();
+    const response = await fetch(
+      `https://electric-vehicle-data2.p.rapidapi.com/dataListIndex?index=${carIndex}&limit=1&orderBy=asc&value=0`,
+      {
+        method: "GET",
+        headers: {
+          "x-rapidapi-host": "electric-vehicle-data2.p.rapidapi.com",
+          "x-rapidapi-key": "YOUR_RAPIDAPI_KEY",
+        },
+      }
+    );
+    const data = await response.json();
+    const car = data[0];
+
+    return {
+      speed: car.TopSpeed_KmH || 0,
+      rpm: car.PowerTrainPower_hp || 0,
+      fuel: car.BatteryCapacity_kWh || 0,
+    };
   } catch (err) {
-    console.error("Failed to fetch telemetry data:", err);
+    console.error("API error:", err);
     return { speed: 0, rpm: 0, fuel: 0 };
   }
 };
@@ -43,16 +59,17 @@ const fetchTelemetryData = async () => {
 export default function AutoLogDashboard() {
   const [data, setData] = useState([]);
   const [labels, setLabels] = useState([]);
+  const [selectedCarIndex, setSelectedCarIndex] = useState(0);
 
   useEffect(() => {
     const interval = setInterval(async () => {
-      const telemetry = await fetchTelemetryData();
+      const telemetry = await fetchVehicleData(selectedCarIndex);
       setData((prev) => [...prev.slice(-9), telemetry]);
       setLabels((prev) => [...prev.slice(-9), new Date().toLocaleTimeString()]);
     }, 2000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [selectedCarIndex]);
 
   const chartData = (key, label, color) => ({
     labels,
@@ -77,7 +94,6 @@ export default function AutoLogDashboard() {
             AutoLog Dashboard Telemetry Monitor
           </h1>
         </div>
-        
       </nav>
 
       {/* Header */}
@@ -87,56 +103,69 @@ export default function AutoLogDashboard() {
         </p>
       </div>
 
+      {/* Car Selector */}
+      <div className="max-w-screen-md mx-auto text-center mt-6">
+        <label className="text-white text-sm mr-2">Select Car:</label>
+        <select
+          className="bg-zinc-800 text-white p-2 rounded"
+          onChange={(e) => setSelectedCarIndex(Number(e.target.value))}
+        >
+          {[...Array(10).keys()].map((i) => (
+            <option key={i} value={i}>Car {i + 1}</option>
+          ))}
+        </select>
+      </div>
+
       <Separator className="my-6 mx-auto max-w-5xl bg-zinc-700" />
 
       {/* Charts */}
       <div className="max-w-5xl mx-auto flex flex-wrap justify-center gap-6 px-4 pb-10">
-        <Card className="rounded-2xl bg-zinc-900 border border-zinc-800 shadow-md">
+        <Card className="rounded-[10px] bg-zinc-900 border border-zinc-800 shadow-md">
           <CardHeader>
             <CardTitle className="text-blue-400">Speed (km/h)</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="min-h-[300px] w-full">
               <Line
-              data={chartData("speed", "Speed", "#3b82f6")}
-              options={{
-                responsive: true,
-                maintainAspectRatio: false,
-              }
-            }
-          />
-        </div>
-
-          </CardContent>
-        </Card>
-        
-        <Card className="rounded-2xl bg-zinc-900 border border-zinc-800 shadow-md">
-          <CardHeader>
-            <CardTitle className="text-green-400">RPM</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="min-h-[300px] w-full">
-              <Line data={chartData("rpm", "RPM", "#10b981")} 
-              options={{
-                responsive:true,
-                maintainAspectRatio:true,
-              }}
+                data={chartData("speed", "Speed", "#3b82f6")}
+                options={{
+                  responsive: true,
+                  maintainAspectRatio: false,
+                }}
               />
             </div>
           </CardContent>
         </Card>
 
-        <Card className="rounded-2xl bg-zinc-900 border border-zinc-800 shadow-md">
+        <Card className="rounded-[10px] bg-zinc-900 border border-zinc-800 shadow-md">
+          <CardHeader>
+            <CardTitle className="text-green-400">RPM</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="min-h-[300px] w-full">
+              <Line
+                data={chartData("rpm", "RPM", "#10b981")}
+                options={{
+                  responsive: true,
+                  maintainAspectRatio: true,
+                }}
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="rounded-[10px] bg-zinc-900 border border-zinc-800 shadow-md">
           <CardHeader>
             <CardTitle className="text-yellow-400">Fuel (%)</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="min-h-[300px] w-full">
-              <Line data={chartData("fuel", "Fuel", "#f59e0b")} 
-              options={{
-                responsive:true,
-                maintainAspectRatio:true,
-              }}
+              <Line
+                data={chartData("fuel", "Fuel", "#f59e0b")}
+                options={{
+                  responsive: true,
+                  maintainAspectRatio: true,
+                }}
               />
             </div>
           </CardContent>
