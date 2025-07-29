@@ -26,7 +26,3 @@ Thumbs.db
 
 # Tailwind JIT cache
 .tailwind/
-
-# Optional: lock file (if you use yarn/pnpm and not npm)
-yarn.lock
-pnpm-lock.yaml
