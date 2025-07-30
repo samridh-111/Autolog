@@ -1,4 +1,3 @@
-// AutoLog: Real-Time Vehicle Telemetry Dashboard
 import {
   Card,
   CardHeader,
@@ -30,46 +29,39 @@ ChartJS.register(
   Legend
 );
 
-const fetchVehicleData = async (carIndex = 0) => {
-  try {
-    const response = await fetch(
-      `https://electric-vehicle-data2.p.rapidapi.com/dataListIndex?index=${carIndex}&limit=1&orderBy=asc&value=0`,
-      {
-        method: "GET",
-        headers: {
-          "x-rapidapi-host": "electric-vehicle-data2.p.rapidapi.com",
-          "x-rapidapi-key": "YOUR_RAPIDAPI_KEY",
-        },
-      }
-    );
-    const data = await response.json();
-    const car = data[0];
-
-    return {
-      speed: car.TopSpeed_KmH || 0,
-      rpm: car.PowerTrainPower_hp || 0,
-      fuel: car.BatteryCapacity_kWh || 0,
-    };
-  } catch (err) {
-    console.error("API error:", err);
-    return { speed: 0, rpm: 0, fuel: 0 };
-  }
-};
-
 export default function AutoLogDashboard() {
   const [data, setData] = useState([]);
   const [labels, setLabels] = useState([]);
-  const [selectedCarIndex, setSelectedCarIndex] = useState(0);
+  const [selectedCar, setSelectedCar] = useState(0);
+  const [carList, setCarList] = useState([]);
+
+  useEffect(() => {
+    // Fetch car list from API
+    fetch("http://localhost:3001/api/cars")
+      .then((res) => res.json())
+      .then((cars) => setCarList(cars))
+      .catch((err) => console.error("Failed to fetch car list:", err));
+  }, []);
 
   useEffect(() => {
     const interval = setInterval(async () => {
-      const telemetry = await fetchVehicleData(selectedCarIndex);
+      const telemetry = await fetchTelemetryData(selectedCar);
       setData((prev) => [...prev.slice(-9), telemetry]);
       setLabels((prev) => [...prev.slice(-9), new Date().toLocaleTimeString()]);
     }, 2000);
 
     return () => clearInterval(interval);
-  }, [selectedCarIndex]);
+  }, [selectedCar]);
+
+  const fetchTelemetryData = async (carIndex = 0) => {
+    try {
+      const res = await fetch(`http://localhost:3001/api/telemetry?carIndex=${carIndex}`);
+      return await res.json();
+    } catch (err) {
+      console.error("Failed to fetch telemetry data:", err);
+      return { speed: 0, rpm: 0, fuel: 0 };
+    }
+  };
 
   const chartData = (key, label, color) => ({
     labels,
@@ -98,20 +90,18 @@ export default function AutoLogDashboard() {
 
       {/* Header */}
       <div className="max-w-5xl mx-auto text-center mt-10 px-4">
-        <p className="text-lg text-zinc-400">
+        <p className="text-lg text-zinc-400 mb-4">
           Real-time vehicle telemetry visualization for speed, RPM, and fuel levels.
         </p>
-      </div>
-
-      {/* Car Selector */}
-      <div className="max-w-screen-md mx-auto text-center mt-6">
-        <label className="text-white text-sm mr-2">Select Car:</label>
         <select
-          className="bg-zinc-800 text-white p-2 rounded"
-          onChange={(e) => setSelectedCarIndex(Number(e.target.value))}
+          className="bg-zinc-800 border border-zinc-700 text-white px-4 py-2 rounded-md"
+          value={selectedCar}
+          onChange={(e) => setSelectedCar(Number(e.target.value))}
         >
-          {[...Array(10).keys()].map((i) => (
-            <option key={i} value={i}>Car {i + 1}</option>
+          {carList.map((car) => (
+            <option key={car.id} value={car.id}>
+              {car.name}
+            </option>
           ))}
         </select>
       </div>
@@ -120,7 +110,7 @@ export default function AutoLogDashboard() {
 
       {/* Charts */}
       <div className="max-w-5xl mx-auto flex flex-wrap justify-center gap-6 px-4 pb-10">
-        <Card className="rounded-[10px] bg-zinc-900 border border-zinc-800 shadow-md">
+        <Card className="rounded-[10px] bg-zinc-900 border border-zinc-800 shadow-md w-full md:w-[30%]">
           <CardHeader>
             <CardTitle className="text-blue-400">Speed (km/h)</CardTitle>
           </CardHeader>
@@ -128,16 +118,13 @@ export default function AutoLogDashboard() {
             <div className="min-h-[300px] w-full">
               <Line
                 data={chartData("speed", "Speed", "#3b82f6")}
-                options={{
-                  responsive: true,
-                  maintainAspectRatio: false,
-                }}
+                options={{ responsive: true, maintainAspectRatio: false }}
               />
             </div>
           </CardContent>
         </Card>
 
-        <Card className="rounded-[10px] bg-zinc-900 border border-zinc-800 shadow-md">
+        <Card className="rounded-[10px] bg-zinc-900 border border-zinc-800 shadow-md w-full md:w-[30%]">
           <CardHeader>
             <CardTitle className="text-green-400">RPM</CardTitle>
           </CardHeader>
@@ -145,16 +132,13 @@ export default function AutoLogDashboard() {
             <div className="min-h-[300px] w-full">
               <Line
                 data={chartData("rpm", "RPM", "#10b981")}
-                options={{
-                  responsive: true,
-                  maintainAspectRatio: true,
-                }}
+                options={{ responsive: true, maintainAspectRatio: false }}
               />
             </div>
           </CardContent>
         </Card>
 
-        <Card className="rounded-[10px] bg-zinc-900 border border-zinc-800 shadow-md">
+        <Card className="rounded-[10px] bg-zinc-900 border border-zinc-800 shadow-md w-full md:w-[30%]">
           <CardHeader>
             <CardTitle className="text-yellow-400">Fuel (%)</CardTitle>
           </CardHeader>
@@ -162,10 +146,7 @@ export default function AutoLogDashboard() {
             <div className="min-h-[300px] w-full">
               <Line
                 data={chartData("fuel", "Fuel", "#f59e0b")}
-                options={{
-                  responsive: true,
-                  maintainAspectRatio: true,
-                }}
+                options={{ responsive: true, maintainAspectRatio: false }}
               />
             </div>
           </CardContent>
